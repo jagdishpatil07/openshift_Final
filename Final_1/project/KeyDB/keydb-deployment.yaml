@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keydb
+  namespace: production
+  labels:
+    app: keydb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keydb
+  template:
+    metadata:
+      labels:
+        app: keydb
+    spec:
+      containers:
+        - name: keydb
+          image: revolutio.azurecr.io/revolutio_kubernetes/keydb:latest
+          command: ["keydb-server", "--server-threads", "4", "--requirepass", "supersecretpassword"]
+          env:
+            - name: TZ
+              value: "UTC"
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: keydb-storage
+              mountPath: /data
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+          readOnlyRootFilesystem: true
+          restartPolicy: Always
+      volumes:
+        - name: keydb-storage
+          persistentVolumeClaim:
+            claimName: keydb-pvc

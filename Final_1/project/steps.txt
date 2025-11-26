@@ -1,0 +1,147 @@
+1️⃣ Your YAMLs structure looks correct
+
+You have:
+
+Namespace: namespace-production.yaml ✅
+
+ImagePullSecret: acr-secret.yaml ✅
+
+Redis: Deployment, Service, PVC ✅
+
+Redis Scheduler: Deployment, Service, PVC ✅
+
+KeyDB: Deployment, Service, PVC ✅
+
+Postgres: Deployment, Service, PVC, Backup PVC ✅
+
+PgBouncer: Deployment, Service ✅
+
+PVCs: static, computation storage, user templates, data store ✅
+
+Everything corresponds to the Docker Compose volumes and services. Looks well-aligned.
+
+2️⃣ Things to check/add
+
+Namespace usage:
+Ensure every YAML has namespace: production in metadata. All your PVCs and Deployments should reference it.
+
+ImagePullSecret:
+Every Deployment spec should include:
+
+imagePullSecrets:
+  - name: acr-secret
+
+
+This is required for pulling from your Azure Container Registry (revolutio.azurecr.io).
+
+PVC storage class:
+For CRC/OpenShift single node, using dynamic provisioning with:
+
+storageClassName: crc-csi-hostpath-provisioner
+
+
+is correct. ✅
+
+Dependencies:
+
+worker deployments depend on redis and web.
+
+web depends on redis, redis-scheduler, pgbouncer1-new.
+
+pgbouncer depends on postgres-new.
+
+Make sure the dependsOn logic is handled via readiness probes in OpenShift. For example, in Deployment spec:
+
+readinessProbe:
+  exec:
+    command: ["redis-cli", "ping"]
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+
+Resources for CRC (single-node VM):
+
+You may need to reduce memory in YAMLs for web and worker containers (e.g., shm_size from 6GB → 1GB) to fit CRC limits.
+
+3️⃣ Steps to deploy on CRC/OpenShift
+
+Login to CRC/OpenShift CLI:
+
+crc start
+oc login -u developer -p developer https://api.crc.testing:6443
+
+
+Create namespace:
+
+oc apply -f Namespace/namespace-production.yaml
+
+
+Create ImagePullSecret:
+
+oc apply -f ImagePullSecret/acr-secret.yaml -n production
+
+
+Deploy PVCs first:
+
+oc apply -f PVC/static-pvc.yaml -n production
+oc apply -f PVC/user-defined-template-pvc.yaml -n production
+oc apply -f PVC/computation-storage-pvc.yaml -n production
+oc apply -f PVC/data-store-pvc.yaml -n production
+oc apply -f Redis/redis-pvc.yaml -n production
+oc apply -f Redis Scheduler/redis-scheduler-pvc.yaml -n production
+oc apply -f KeyDB/keydb-pvc.yaml -n production
+oc apply -f Postgres/postgres-new-pvc.yaml -n production
+oc apply -f Postgres/postgres-new-backup-pvc.yaml -n production
+
+
+Deploy services and deployments in order of dependency:
+
+# Redis
+oc apply -f Redis/redis-service.yaml -n production
+oc apply -f Redis/redis-deployment.yaml -n production
+
+# Redis Scheduler
+oc apply -f Redis Scheduler/redis-scheduler-service.yaml -n production
+oc apply -f Redis Scheduler/redis-scheduler-deployment.yaml -n production
+
+# KeyDB
+oc apply -f KeyDB/keydb-service.yaml -n production
+oc apply -f KeyDB/keydb-deployment.yaml -n production
+
+# Postgres
+oc apply -f Postgres/postgres-new-service.yaml -n production
+oc apply -f Postgres/postgres-new-deployment.yaml -n production
+
+# PgBouncer
+oc apply -f PgBouncer/pgbouncer1-new-service.yaml -n production
+oc apply -f PgBouncer/pgbouncer1-new-deployment.yaml -n production
+
+# Workers
+oc apply -f Worker/worker-deployments/*.yaml -n production
+
+# Web
+oc apply -f Web/web-deployment.yaml -n production
+oc apply -f Web/web-service.yaml -n production
+
+# Arrowflight & RQ Scheduler
+oc apply -f Arrowflight/arrowflight-deployment.yaml -n production
+oc apply -f Arrowflight/arrowflight-service.yaml -n production
+
+oc apply -f RQScheduler/rqscheduler-deployment.yaml -n production
+oc apply -f RQScheduler/rqscheduler-service.yaml -n production
+
+
+Verify everything:
+
+oc get pods -n production
+oc get pvc -n production
+oc get svc -n production
+
+
+✅ Optional:
+
+Add resource limits in Deployments to avoid CRC memory issues.
+
+Reduce shm_size for workers to 512MB-1GB.
+
+Ensure health/readiness probes are properly defined to manage startup dependencies.

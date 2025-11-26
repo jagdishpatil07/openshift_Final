@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer1-new
+  namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer1-new
+  template:
+    metadata:
+      labels:
+        app: pgbouncer1-new
+    spec:
+      containers:
+        - name: pgbouncer1-new
+          image: edoburu/pgbouncer:1.15.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRESQL_HOST
+              value: "postgres-new"
+            - name: PGBOUNCER_AUTH_TYPE
+              value: "trust"
+            - name: DB_HOST
+              value: "postgres-new"
+            - name: DB_USER
+              value: "revolutio"
+            - name: DB_PASSWORD
+              value: "supersecretpassword"
+            - name: POOL_MODE
+              value: "transaction"
+            - name: SERVER_RESET_QUERY
+              value: "DISCARD ALL"
+            - name: IGNORE_STARTUP_PARAMETERS
+              value: "options"
+            - name: MAX_CLIENT_CONN
+              value: "100"
+            - name: default_pool_size
+              value: "50"
+          ports:
+            - containerPort: 5432
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      restartPolicy: Always

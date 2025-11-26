@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-scheduler
+  namespace: production
+  labels:
+    app: redis-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-scheduler
+  template:
+    metadata:
+      labels:
+        app: redis-scheduler
+    spec:
+      containers:
+        - name: redis-scheduler
+          image: revolutio.azurecr.io/revolutio_kubernetes/redis:5.0.4-stretch
+          command: ["redis-server", "--maxmemory", "10gb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "YOUR_REDIS_PASSWORD_SCHEDULER"]
+          env:
+            - name: TZ
+              value: "UTC"
+          volumeMounts:
+            - name: redis-scheduler-pvc
+              mountPath: /data
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+            requests:
+              memory: "1Gi"
+              cpu: "0.5"
+          readOnlyRootFilesystem: true
+          startupProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            failureThreshold: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "redis-cli -a $REDIS_PASSWORD_SCHEDULER shutdown"]
+      restartPolicy: Always
+      volumes:
+        - name: redis-scheduler-pvc
+          persistentVolumeClaim:
+            claimName: redis-scheduler-pvc

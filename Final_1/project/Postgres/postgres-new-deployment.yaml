@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-new
+  namespace: production
+  labels:
+    app: postgres-new
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-new
+  template:
+    metadata:
+      labels:
+        app: postgres-new
+    spec:
+      containers:
+        - name: postgres-new
+          image: revolutio.azurecr.io/revolutio_kubernetes/postgres:15-bullseye
+          imagePullPolicy: Always
+          env:
+            - name: POSTGRES_DB
+              value: "Platform_DB"
+            - name: POSTGRES_USER
+              value: "revolutio"
+            - name: POSTGRES_PASSWORD
+              value: "supersecretpassword"
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-backup
+              mountPath: /backups
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-new-pvc
+        - name: postgres-backup
+          persistentVolumeClaim:
+            claimName: postgres-backup-new-pvc
