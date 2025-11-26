@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: production
+  labels:
+    app: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: web
+          image: revolutio.azurecr.io/revolutio_kubernetes/revolutio:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c","python3 manage.py collectstatic --no-input; uvicorn config.asgi:application --port 5000 --host 0.0.0.0"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - /opt/revolutio/healthcheck.sh 5000 || exit 1
+            initialDelaySeconds: 20
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              memory: "300Mi"
+              cpu: "200m"
+            limits:
+              memory: "700Mi"
+              cpu: "800m"
+          volumeMounts:
+            - name: revolutio-conf
+              mountPath: /opt/revolutio/revolutio.conf
+              subPath: revolutio.conf
+            - name: static
+              mountPath: /opt/revolutio/static
+            - name: media
+              mountPath: /opt/revolutio/Core/media
+            - name: user-templates
+              mountPath: /opt/revolutio/Core/templates/user_defined_template
+            - name: platform-configs
+              mountPath: /opt/revolutio/Platform_Configs
+            - name: computation-storage
+              mountPath: /opt/revolutio/Computation_Temp_Storage
+      volumes:
+        - name: revolutio-conf
+          configMap:
+            name: revolutio-conf-cm
+        - name: static
+          persistentVolumeClaim:
+            claimName: pvc-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: pvc-media
+        - name: user-templates
+          persistentVolumeClaim:
+            claimName: pvc-static
+        - name: platform-configs
+          persistentVolumeClaim:
+            claimName: pvc-postgres
+        - name: computation-storage
+          persistentVolumeClaim:
+            claimName: pvc-postgres

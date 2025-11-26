@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: production
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: redis
+          image: revolutio.azurecr.io/revolutio_kubernetes/redis:5.0.4-stretch
+          imagePullPolicy: IfNotPresent
+          # reduced maxmemory for low-memory CRC
+          command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "$(REDIS_PASSWORD)"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: pvc-redis

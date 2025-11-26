@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: arrowflight
+  namespace: production
+spec:
+  selector:
+    app: arrowflight
+  ports:
+    - port: 8815
+      targetPort: 8815
+  type: ClusterIP

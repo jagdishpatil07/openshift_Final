@@ -1,0 +1,29 @@
+Notes, checks and dependency order
+
+Namespace: apply 00-namespace-production.yaml first.
+
+Create acr-secret in namespace production before applying deployments (I left 01-secret-registry.yaml optional).
+
+Create app secret revolutio-secrets (02) before deploying.
+
+Create PVCs first (they dynamically provision PVs in CRC).
+
+Deployments reference PVCs and the revolutio-conf-cm ConfigMap — create configmap file (08-configmaps.yaml) before deployments that mount it.
+
+Worker deployments: I provided a deployment-worker-template.yaml. Duplicate and change metadata.name and command per worker variant from your compose (names & commands are in your docker-compose). For example:
+
+deployment-worker.yaml → command /rqworker/start
+
+deployment-worker-app-migration.yaml → command /rqworker/start-app-migration
+
+deployment-worker-computation-0.yaml → command /rqworker/start-computation-0
+
+deployment-worker-data-upload-0.yaml → command /rqworker/start-data-upload-0
+
+deployment-worker-scheduler.yaml → command /rqworker/start-scheduler
+
+deployment-worker-scheduler-system.yaml → command /rqworker/start-scheduler-system
+
+Because you run CRC with limited memory, I set low resource requests and modest limits. If CRC OOMs, reduce replicas to 0/scale down some workers. For heavy workloads (e.g., migrations), run them one at a time.
+
+I replaced Docker tmpfs with emptyDir and avoided readOnly: true because many images write logs. If you need readOnlyRootFilesystem, we can add securityContext and specifically enable writable emptyDir mounts.

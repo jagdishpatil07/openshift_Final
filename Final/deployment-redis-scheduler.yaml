@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-scheduler
+  namespace: production
+  labels:
+    app: redis-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-scheduler
+  template:
+    metadata:
+      labels:
+        app: redis-scheduler
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: redis-scheduler
+          image: revolutio.azurecr.io/revolutio_kubernetes/redis:5.0.4-stretch
+          imagePullPolicy: IfNotPresent
+          command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--requirepass", "$(REDIS_PASSWORD_SCHEDULER)"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: redis-scheduler-data
+              mountPath: /data
+      volumes:
+        - name: redis-scheduler-data
+          persistentVolumeClaim:
+            claimName: pvc-redis-scheduler

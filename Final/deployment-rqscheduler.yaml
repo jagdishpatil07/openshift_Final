@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rqscheduler
+  namespace: production
+  labels:
+    app: rqscheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rqscheduler
+  template:
+    metadata:
+      labels:
+        app: rqscheduler
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: rqscheduler
+          image: revolutio.azurecr.io/revolutio_kubernetes/rqscheduler:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/start"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "300Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: revolutio-conf
+              mountPath: /opt/revolutio/revolutio.conf
+              subPath: revolutio.conf
+      volumes:
+        - name: revolutio-conf
+          configMap:
+            name: revolutio-conf-cm

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: arrowflight
+  namespace: production
+  labels:
+    app: arrowflight
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: arrowflight
+  template:
+    metadata:
+      labels:
+        app: arrowflight
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: arrowflight
+          image: revolutio.azurecr.io/revolutio/arrowflight
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "300Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: data-store
+              mountPath: /opt/data_store
+            - name: app-code
+              mountPath: /app
+      volumes:
+        - name: data-store
+          persistentVolumeClaim:
+            claimName: pvc-postgres
+        - name: app-code
+          emptyDir: {}

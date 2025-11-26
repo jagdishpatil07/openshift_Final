@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: pgbouncer-route
+  namespace: production
+spec:
+  to:
+    kind: Service
+    name: pgbouncer1-new
+  port:
+    targetPort: 5432
+  tls:
+    termination: edge

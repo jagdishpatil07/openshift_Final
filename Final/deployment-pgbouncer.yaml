@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer1-new
+  namespace: production
+  labels:
+    app: pgbouncer1-new
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer1-new
+  template:
+    metadata:
+      labels:
+        app: pgbouncer1-new
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.15.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRESQL_HOST
+              value: "postgres-new"
+            - name: PGBOUNCER_AUTH_TYPE
+              value: "trust"
+            - name: DB_HOST
+              value: "postgres-new"
+            - name: DB_USER
+              value: "revolutio"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: revolutio-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POOL_MODE
+              value: "transaction"
+            - name: SERVER_RESET_QUERY
+              value: "DISCARD ALL"
+            - name: IGNORE_STARTUP_PARAMETERS
+              value: "options"
+            - name: MAX_CLIENT_CONN
+              value: "100"
+            - name: default_pool_size
+              value: "50"
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"

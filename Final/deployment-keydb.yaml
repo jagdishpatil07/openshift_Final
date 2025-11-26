@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keydb
+  namespace: production
+  labels:
+    app: keydb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keydb
+  template:
+    metadata:
+      labels:
+        app: keydb
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: keydb
+          image: revolutio.azurecr.io/revolutio_kubernetes/keydb:latest
+          imagePullPolicy: IfNotPresent
+          command: ["keydb-server", "--server-threads", "4", "--requirepass", "$(KEYDB_PASSWORD)"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: keydb-data
+              mountPath: /data
+      volumes:
+        - name: keydb-data
+          persistentVolumeClaim:
+            claimName: pvc-keydb

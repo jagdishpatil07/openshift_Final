@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: production
+  labels:
+    app: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: worker
+          image: revolutio.azurecr.io/revolutio_kubernetes/revolutio:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c","/rqworker/start"]
+          envFrom:
+            - secretRef:
+                name: revolutio-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "150m"
+            limits:
+              memory: "600Mi"
+              cpu: "600m"
+          volumeMounts:
+            - name: revolutio-conf
+              mountPath: /opt/revolutio/revolutio.conf
+              subPath: revolutio.conf
+            - name: static
+              mountPath: /opt/revolutio/static
+            - name: media
+              mountPath: /opt/revolutio/Core/media
+            - name: platform-configs
+              mountPath: /opt/revolutio/Platform_Configs
+            - name: computation-storage
+              mountPath: /opt/revolutio/Computation_Temp_Storage
+      volumes:
+        - name: revolutio-conf
+          configMap:
+            name: revolutio-conf-cm
+        - name: static
+          persistentVolumeClaim:
+            claimName: pvc-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: pvc-media
+        - name: platform-configs
+          persistentVolumeClaim:
+            claimName: pvc-postgres
+        - name: computation-storage
+          persistentVolumeClaim:
+            claimName: pvc-postgres

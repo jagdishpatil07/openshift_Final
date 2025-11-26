@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: production
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: nginx
+          image: revolutio.azurecr.io/revolutio_kubernetes/nginx:latest
+          imagePullPolicy: IfNotPresent
+          command: ["nginx", "-g", "daemon off;"]
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "300Mi"
+              cpu: "300m"
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: static
+              mountPath: /var/www/revolutio/static
+            - name: media
+              mountPath: /var/www/revolutio/media
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: nginx-conf-cm
+        - name: static
+          persistentVolumeClaim:
+            claimName: pvc-static
+        - name: media
+          persistentVolumeClaim:
+            claimName: pvc-media
